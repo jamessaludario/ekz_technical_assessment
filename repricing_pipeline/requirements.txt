@@ -1,0 +1,10 @@
+# Orchestration
+prefect>=2.0
+
+# API client + server
+fastapi
+uvicorn
+requests
+
+# Testing
+pytest
