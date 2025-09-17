@@ -3,6 +3,7 @@ from repricing_pipeline.load import init_db, upsert_products
 from repricing_pipeline.db.seed_vendors import seed_vendors
 from repricing_pipeline.api_client import fetch_all_products, fetch_categories, fetch_brands, fetch_shipping_tiers
 from repricing_pipeline.transform import transform_products
+from repricing_pipeline.config import PREFECT_FLOW_NAME
 
 # --- Tasks ---
 
@@ -83,7 +84,7 @@ def load(products):
 
 # --- Flow ---
 
-@flow(name="repricing_pipeline")
+@flow(name=PREFECT_FLOW_NAME)
 def repricing_pipeline_flow():
     initialize_database()
 
