@@ -3,11 +3,11 @@ import sqlite3
 from repricing_pipeline.config import DB_PATH
 
 VENDORS = [
-    {"id": 1, "name": "Evergreen Merchants"},
-    {"id": 2, "name": "Titan Labs"},
-    {"id": 3, "name": "Prime Distributors"},
-    {"id": 4, "name": "Pacific Supply Group"},
-    {"id": 5, "name": "Brightside Trading"},
+    {"vendor_id": 1, "name": "Evergreen Merchants"},
+    {"vendor_id": 2, "name": "Titan Labs"},
+    {"vendor_id": 3, "name": "Prime Distributors"},
+    {"vendor_id": 4, "name": "Pacific Supply Group"},
+    {"vendor_id": 5, "name": "Brightside Trading"},
 ]
 
 def seed_vendors():
@@ -15,8 +15,12 @@ def seed_vendors():
     cur = conn.cursor()
     for v in VENDORS:
         cur.execute(
-            "INSERT OR IGNORE INTO vendors (id, name) VALUES (?, ?)",
-            (v["id"], v["name"]),
+            """
+            INSERT INTO vendors (vendor_id, name)
+            VALUES (?, ?)
+            ON CONFLICT(vendor_id) DO UPDATE SET name=excluded.name
+            """,
+            (v["vendor_id"], v["name"]),
         )
     conn.commit()
     conn.close()

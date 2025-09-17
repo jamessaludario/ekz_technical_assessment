@@ -1,3 +1,5 @@
+# repricing_pipeline/transform.py
+
 from typing import Dict, Tuple, List
 import math
 
@@ -22,7 +24,7 @@ CATEGORY_RULES = {
     "Furniture & Home": 0.25,
 }
 
-# Vendor + Category specific overrides
+# Vendor + Category overrides
 VENDOR_CATEGORY_RULES = {
     ("Evergreen Merchants", "Automotive & Industrial"): {"target_margin": 0.35, "extra_cost": 0.0},
     ("Titan Labs", "Electronics"): {"target_margin": 0.40, "extra_cost": -10.0},
@@ -30,7 +32,7 @@ VENDOR_CATEGORY_RULES = {
     ("Pacific Supply Group", "Furniture & Home"): {"target_margin": 0.35, "extra_cost": 20.0},
 }
 
-# Brand-specific rules (only apply if no shipping tier cost is present)
+# Brand rules (applied if no shipping tier cost)
 BRAND_RULES = {
     "StoneBridge": 0.60,
     "BrightLeaf": 0.60,
@@ -41,100 +43,83 @@ BRAND_RULES = {
     "RapidStream": 0.50,
 }
 
+
 def _apply_rounding(raw_price: float) -> float:
-    """
-    Rounding rule:
-    - Round down whole number to nearest lower odd integer.
-    - If decimal part >= 0.50 → .95
-      else → .45
-    """
+    """Rounds the price to nearest odd whole + .45/.95 decimal as per rules."""
     if raw_price is None:
         return None
     if raw_price < 0:
         raise ValueError("raw_price must be non-negative")
 
-    whole = math.floor(raw_price)
+    whole = int(math.floor(raw_price))
     if whole % 2 == 0:
         whole -= 1
     if whole < 1:
         whole = 1
 
     decimal = raw_price - math.floor(raw_price)
-    if decimal >= 0.50:
-        final = whole + 0.95
-    else:
-        final = whole + 0.45
+    final = whole + (0.95 if decimal >= 0.5 else 0.45)
     return round(final, 2)
 
+
 def determine_target_margin_and_extra_cost(product: Dict) -> Tuple[float, float]:
-    """
-    Determine target margin and extra cost based on priority rules:
-    1. Brand rule (only if no shipping tier cost is present)
-    2. Vendor + Category override
-    3. Category rule
-    4. Vendor default rule
-    """
+    """Determine target margin and extra cost based on brand, vendor, and category rules."""
     vendor = product.get("vendor")
     category = product.get("category")
     brand = product.get("brand")
 
-    # Normalize shipping_tier_cost (treat None, empty, or 0 as missing)
     shipping_tier_cost_raw = product.get("shipping_tier_cost", None)
-    has_shipping_tier_cost = (
-        shipping_tier_cost_raw not in (None, "", 0, 0.0)
-        and str(shipping_tier_cost_raw).strip() != ""
-    )
+    has_shipping_tier_cost = shipping_tier_cost_raw not in (None, "", 0, 0.0)
 
+    # Brand rules override everything if no shipping tier cost
+    if not has_shipping_tier_cost and brand in BRAND_RULES:
+        return BRAND_RULES[brand], 0.0
+
+    # Vendor rules
     vendor_rule = VENDOR_RULES.get(vendor, {"extra_cost": 0.0, "target_margin": DEFAULT_TARGET_MARGIN})
     vendor_extra = vendor_rule.get("extra_cost", 0.0)
     vendor_margin = vendor_rule.get("target_margin", DEFAULT_TARGET_MARGIN)
 
-    target_margin = DEFAULT_TARGET_MARGIN
-    extra_cost_applied = vendor_extra
-
-    # Brand override
-    if not has_shipping_tier_cost and brand and brand in BRAND_RULES:
-        target_margin = BRAND_RULES[brand]
-
-    # Vendor + Category override
+    # Vendor + Category overrides
     key = (vendor, category)
     if key in VENDOR_CATEGORY_RULES:
         vcr = VENDOR_CATEGORY_RULES[key]
-        target_margin = vcr.get("target_margin", target_margin)
-        extra_cost_applied = vcr.get("extra_cost", extra_cost_applied)
-        return target_margin, extra_cost_applied
+        return vcr.get("target_margin", vendor_margin), vcr.get("extra_cost", vendor_extra)
 
-    # Category rule (if not already overridden by brand)
+    # Category rules
     if category in CATEGORY_RULES:
-        if has_shipping_tier_cost or not (brand and brand in BRAND_RULES):
-            target_margin = CATEGORY_RULES[category]
-        extra_cost_applied = vendor_extra
-        return target_margin, extra_cost_applied
+        return CATEGORY_RULES[category], vendor_extra
 
-    # Fallback → vendor rules
+    # Default vendor rules
     return vendor_margin, vendor_extra
 
+
 def calculate_price(product: Dict) -> Dict:
-    """
-    Compute:
-    - total_cost = cost + shipping_cost + extra_cost_applied
-    - raw_price = total_cost / (1 - target_margin)
-    - calculated_price = rounded according to rules
-    """
+    """Calculate raw and final prices based on rules and rounding."""
     cost = float(product.get("cost", 0.0) or 0.0)
     shipping_cost = float(product.get("shipping_cost", 0.0) or 0.0)
 
     target_margin, extra_cost_applied = determine_target_margin_and_extra_cost(product)
 
+    # Total cost includes extra cost
     total_cost = cost + shipping_cost + (extra_cost_applied or 0.0)
+
     if (1 - target_margin) <= 0:
         raise ValueError("Invalid target margin >= 1")
 
     raw_price = total_cost / (1 - target_margin)
     final_price = _apply_rounding(raw_price)
 
+    # Ensure IDs are present for DB schema
+    brand_id = product.get("brand_id") or product.get("brand_id_from_api")
+    category_id = product.get("category_id") or product.get("category_id_from_api")
+    shipping_tier_id = product.get("shipping_tier_id") or product.get("shipping_tier_id_from_api")
+
     return {
         **product,
+        "brand_id": brand_id,
+        "category_id": category_id,
+        "shipping_tier_id": shipping_tier_id,
         "target_margin": target_margin,
         "extra_cost_applied": extra_cost_applied,
         "total_cost": total_cost,
@@ -142,11 +127,9 @@ def calculate_price(product: Dict) -> Dict:
         "calculated_price": final_price,
     }
 
+
 def transform_products(products: List[Dict]) -> List[Dict]:
-    """
-    Apply price calculation to a list of products.
-    Each product dict will be enriched with pricing fields.
-    """
+    """Apply pricing transformation to a list of products."""
     transformed = []
     for p in products:
         try:
