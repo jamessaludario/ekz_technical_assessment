@@ -1,4 +1,3 @@
-# repricing_pipeline/db/seed_vendors.py
 import sqlite3
 from repricing_pipeline.config import DB_PATH
 

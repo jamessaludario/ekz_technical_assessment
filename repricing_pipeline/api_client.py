@@ -1,5 +1,3 @@
-# repricing_pipeline/api_client.py
-
 import requests
 import sqlite3
 from .config import API_URL, API_KEY, DB_PATH

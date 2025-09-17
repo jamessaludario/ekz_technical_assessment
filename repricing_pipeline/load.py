@@ -1,5 +1,3 @@
-# repricing_pipeline/load.py
-
 import sqlite3
 from typing import List, Dict
 import os

@@ -1,5 +1,3 @@
-# repricing_pipeline/tests/test_load.py
-
 import pytest
 from repricing_pipeline.load import init_db, upsert_products, _get_connection
 

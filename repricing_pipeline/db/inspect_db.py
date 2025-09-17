@@ -1,5 +1,3 @@
-# repricing_pipeline/db/inspect_db.py
-
 import sqlite3
 from repricing_pipeline.config import DB_PATH
 from pprint import pprint

@@ -5,6 +5,7 @@ prefect>=2.0
 fastapi
 uvicorn
 requests
+python-dotenv
 
 # Testing
 pytest

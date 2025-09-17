@@ -1,5 +1,3 @@
-# repricing_pipeline/transform.py
-
 from typing import Dict, Tuple, List
 import math
 
