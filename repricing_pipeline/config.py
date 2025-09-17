@@ -3,19 +3,14 @@
 import os
 from dotenv import load_dotenv
 
-# Load variables from .env (if file exists)
 load_dotenv()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# API settings
+API_URL = os.getenv("API_URL")
+API_KEY = os.getenv("API_KEY")
 
-# Local API (the provided local API in api/ folder)
-API_URL = os.environ.get("REPRICING_API_URL", "http://127.0.0.1:8000/api/v1")
+# Database path
+DB_PATH = os.getenv("DB_PATH", "data/products.db")
 
-# API Key for authentication
-API_KEY = os.environ.get("REPRICING_API_KEY")
-
-# SQLite DB path
-DB_PATH = os.environ.get("REPRICING_DB", os.path.join(BASE_DIR, "db\\products.db"))
-
-# Prefect settings (optional runtime overrides)
-PREFECT_FLOW_NAME = "repricing_pipeline_flow"
+# Prefect flow name
+PREFECT_FLOW_NAME = os.getenv("PREFECT_FLOW_NAME", "repricing_pipeline")

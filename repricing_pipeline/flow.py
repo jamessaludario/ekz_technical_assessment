@@ -1,42 +1,45 @@
-# repricing_pipeline/flow.py
-
 from prefect import flow, task
+from repricing_pipeline.load import init_db, upsert_products
+from repricing_pipeline.db.seed_vendors import seed_vendors
 from repricing_pipeline.api_client import fetch_all_products
 from repricing_pipeline.transform import transform_products
-from repricing_pipeline.load import init_db, upsert_products
-from repricing_pipeline.config import PREFECT_FLOW_NAME, VENDORS
 
 
 @task
-def extract_task():
-    print("Extracting products from API...")
+def initialize_database():
+    print("Initializing database...")
+    init_db()
+    seed_vendors()
+
+
+@task
+def fetch_products():
+    print("Fetching products from API...")
     products = fetch_all_products()
-    print(f"Extracted {len(products)} products")
+    print(f"Fetched total products: {len(products)}")
+    if products:
+        print("Sample product:", products[0])
     return products
 
 
 @task
-def transform_task(products):
-    print("🔹 Transforming products (applying pricing rules)...")
-    transformed = transform_products(products)
-    print(f"Transformed {len(transformed)} products")
-    return transformed
+def transform(products):
+    print("Transforming products...")
+    return transform_products(products)
 
 
 @task
-def load_task(products):
-    print("Initializing database, seeding vendors, and loading products...")
-    # Seed vendors if DB is empty or on first run
-    init_db(seed_vendors=VENDORS)
+def load(products):
+    print("Loading products into database...")
     upsert_products(products)
-    print("Load complete")
 
-
-@flow(name=PREFECT_FLOW_NAME)
+@flow(name="repricing_pipeline")
 def repricing_pipeline_flow():
-    raw_products = extract_task()
-    transformed_products = transform_task(raw_products)
-    load_task(transformed_products)
+    initialize_database()
+    raw_products = fetch_products()
+    transformed = transform(raw_products)
+    load(transformed)
+    print("Pipeline completed successfully!")
 
 
 if __name__ == "__main__":
