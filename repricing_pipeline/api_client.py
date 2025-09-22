@@ -14,7 +14,7 @@ def get_vendors_from_db() -> list[dict]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    vendors = cur.execute("SELECT id, name FROM vendors ORDER BY id").fetchall()
+    vendors = cur.execute("SELECT vendor_id, name FROM vendors ORDER BY vendor_id").fetchall()
     conn.close()
     return [dict(v) for v in vendors]
 

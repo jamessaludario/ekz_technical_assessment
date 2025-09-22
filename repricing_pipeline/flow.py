@@ -1,7 +1,7 @@
 from prefect import flow, task, get_run_logger
 from repricing_pipeline.load import init_db, upsert_products
 from repricing_pipeline.db.seed_vendors import seed_vendors
-from repricing_pipeline.api_client import fetch_all_products, fetch_categories, fetch_brands, fetch_shipping_tiers
+from repricing_pipeline.api_client import get_vendors_from_db, fetch_all_products, fetch_categories, fetch_brands, fetch_shipping_tiers
 from repricing_pipeline.transform import transform_products
 from repricing_pipeline.config import PREFECT_FLOW_NAME
 
@@ -88,7 +88,8 @@ def load(products):
 def repricing_pipeline_flow():
     initialize_database()
 
-    vendor_ids = [1, 2, 3, 4, 5]  # Example vendor IDs
+    vendors = get_vendors_from_db()
+    vendor_ids = [v["vendor_id"] for v in vendors]  # vendor IDs
     all_transformed = []
 
     for vid in vendor_ids:
