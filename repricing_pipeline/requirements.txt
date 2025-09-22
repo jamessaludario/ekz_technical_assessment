@@ -1,10 +1,10 @@
 # Orchestration
 prefect>=2.0
 
-# API client + server
-fastapi
-uvicorn
+# HTTP requests to fetch data from the local API
 requests
+
+# Environment variables
 python-dotenv
 
 # Testing
